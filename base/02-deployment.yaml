@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels:
+    app: otel-collector
+spec:
+  replicas: 2                      # HPA takes over scaling after creation
+  selector:
+    matchLabels:
+      app: otel-collector
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0            # never drop below current capacity during updates
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      # Spread replicas across nodes so one node dying doesn't take them all out
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: otel-collector
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector-contrib:0.163.1   # pinned, not :latest
+          args: ["--config=/conf/config.yaml"]
+          env:
+            - name: GOMEMLIMIT     # keep Go's GC inside the memory limit
+              value: "400MiB"
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: metrics,   containerPort: 8888 }
+            - { name: zpages,    containerPort: 55679 }
+            - { name: health,    containerPort: 13133 }
+          resources:
+            requests:              # HPA CPU % is measured against this
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          livenessProbe:
+            httpGet: { path: /, port: health }
+          readinessProbe:
+            httpGet: { path: /, port: health }
+          volumeMounts:
+            - name: config
+              mountPath: /conf
+      volumes:
+        - name: config
+          configMap:
+            name: otel-collector-config

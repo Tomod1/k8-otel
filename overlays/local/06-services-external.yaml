@@ -1,0 +1,14 @@
+# Exposes the collector outside the cluster: localhost:14317 (gRPC) / :14318 (HTTP)
+# Used by the local otel collector to forward into the cluster. 143xx avoids clashing with its own 4317/4318.
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector-external
+  namespace: observability
+spec:
+  type: LoadBalancer
+  selector:
+    app: otel-collector
+  ports:
+    - { name: otlp-grpc, port: 14317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 14318, targetPort: otlp-http }

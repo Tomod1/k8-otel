@@ -1,0 +1,16 @@
+# metrics-server: needed for `kubectl top` and the HPA. Docker Desktop doesn't ship it.
+# Re-apply after a cluster reset:
+#   kubectl apply -k k8s/addons/metrics-server
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/kubernetes-sigs/metrics-server/releases/download/v0.9.0/components.yaml   # pinned, not latest
+patches:
+  # Local kind clusters use self-signed kubelet certs with no IP SANs. Local only, never on a real cluster.
+  - target:
+      kind: Deployment
+      name: metrics-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --kubelet-insecure-tls

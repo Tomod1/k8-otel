@@ -1,0 +1,13 @@
+# Apps send telemetry to otel-collector.observability.svc:4317 (gRPC) or :4318 (HTTP)
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+spec:
+  selector:
+    app: otel-collector
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    - { name: metrics,   port: 8888, targetPort: metrics }
